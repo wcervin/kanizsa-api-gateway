@@ -40,7 +40,7 @@ print_step() {
 
 print_header() {
     echo -e "${CYAN}================================================${NC}"
-    echo -e "${CYAN}  Kanizsa Photo Categorizer - Push Workflow${NC}"
+    echo -e "${CYAN}  Kanizsa API Gateway - Push Workflow${NC}"
     echo -e "${CYAN}================================================${NC}"
 }
 
@@ -51,7 +51,7 @@ print_header
 
 # Check if we're in the correct repository
 if [[ ! -f "$SCRIPT_DIR/VERSION" ]]; then
-    print_error "VERSION file not found! Make sure you're in the kanizsa-photo-categorizer repository."
+    print_error "VERSION file not found! Make sure you're in the kanizsa-api-gateway repository."
     exit 1
 fi
 
