@@ -2,9 +2,9 @@ _format_version: "3.0"
 _transform: true
 
 services:
-  # Kanizsa API Service
-  - name: kanizsa-api
-    url: http://kanizsa-app:8000
+  # Platform API Service
+  - name: platform-api
+    url: http://platform-service:8000
     routes:
       - name: kanizsa-api-routes
         protocols:
@@ -158,9 +158,9 @@ services:
             interval: 30
             successes: 2
 
-  # MCP Server Service
-  - name: kanizsa-mcp
-    url: http://kanizsa-mcp-server:8002
+  # Agent Communication Service
+  - name: agent-communication
+    url: http://agent-service:8002
     routes:
       - name: mcp-routes
         protocols:
@@ -236,8 +236,8 @@ services:
           upstream_health: true
 
   # Health Check Service
-  - name: kanizsa-health
-    url: http://kanizsa-app:8000
+  - name: platform-health
+    url: http://platform-service:8000
     routes:
       - name: health-routes
         protocols:

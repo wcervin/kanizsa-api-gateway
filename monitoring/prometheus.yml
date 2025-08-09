@@ -18,9 +18,9 @@ scrape_configs:
       - targets: ['localhost:9090']
 
   # Kanizsa Application
-  - job_name: 'kanizsa-app'
+  - job_name: 'platform-service'
     static_configs:
-      - targets: ['kanizsa-app:8000']
+      - targets: ['platform-service:8000']
     metrics_path: '/metrics'
     scrape_interval: 30s
 
