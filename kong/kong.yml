@@ -1,0 +1,317 @@
+_format_version: "3.0"
+_transform: true
+
+services:
+  # Kanizsa API Service
+  - name: kanizsa-api
+    url: http://kanizsa-app:8000
+    routes:
+      - name: kanizsa-api-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /api
+          - /health
+        strip_path: false
+        preserve_host: true
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "http://localhost:3000"
+            - "http://localhost:8000"
+            - "https://localhost:8443"
+            - "http://localhost:8080"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Content-Type
+            - Authorization
+            - X-Requested-With
+            - X-Kanizsa-Client
+          exposed_headers:
+            - X-Total-Count
+            - X-Response-Time
+            - X-Kanizsa-Version
+          credentials: true
+          max_age: 3600
+      - name: rate-limiting
+        config:
+          minute: 200
+          hour: 2000
+          day: 10000
+          policy: local
+          fault_tolerant: true
+          hide_client_headers: false
+      - name: request-size-limiting
+        config:
+          allowed_payload_size: 10485760  # 10MB
+          require_content_length: false
+          size_unit: bytes
+      - name: circuit-breaker
+        config:
+          threshold: 5
+          timeout: 10
+          unhealthy:
+            http_statuses: [500, 502, 503, 504]
+            interval: 30
+          healthy:
+            http_statuses: [200, 201, 202]
+            interval: 30
+            successes: 2
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - X-Kanizsa-Version: "10.0.1"
+              - X-Gateway: "Kong"
+              - X-Request-ID: "${request_id}"
+          remove:
+            headers:
+              - X-Forwarded-For
+      - name: response-transformer
+        config:
+          add:
+            headers:
+              - X-Response-Time: "${response_time}"
+              - X-Kanizsa-Gateway: "Kong"
+              - X-Request-ID: "${request_id}"
+              - X-Cache-Status: "${cache_status}"
+      - name: prometheus
+        config:
+          status_codes: true
+          latency: true
+          bandwidth: true
+          upstream_health: true
+          http_requests: true
+          http_status_codes: true
+          latency_histogram_buckets:
+            - 0.005
+            - 0.01
+            - 0.025
+            - 0.05
+            - 0.075
+            - 0.1
+            - 0.25
+            - 0.5
+            - 0.75
+            - 1
+            - 2.5
+            - 5
+            - 7.5
+            - 10
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid
+          echo_downstream: true
+
+  # Flower Monitoring Service
+  - name: kanizsa-flower
+    url: http://flower:5555
+    routes:
+      - name: flower-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /flower
+        strip_path: true
+        preserve_host: true
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "http://localhost:3000"
+            - "http://localhost:8000"
+            - "https://localhost:8443"
+          methods:
+            - GET
+            - POST
+            - OPTIONS
+          headers:
+            - Content-Type
+            - Authorization
+          credentials: true
+      - name: basic-auth
+        config:
+          hide_credentials: true
+      - name: rate-limiting
+        config:
+          minute: 60
+          hour: 600
+          policy: local
+      - name: circuit-breaker
+        config:
+          threshold: 3
+          timeout: 15
+          unhealthy:
+            http_statuses: [500, 502, 503, 504]
+            interval: 30
+          healthy:
+            http_statuses: [200, 201, 202]
+            interval: 30
+            successes: 2
+
+  # MCP Server Service
+  - name: kanizsa-mcp
+    url: http://kanizsa-mcp-server:8002
+    routes:
+      - name: mcp-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /mcp
+        strip_path: true
+        preserve_host: true
+    plugins:
+      - name: cors
+        config:
+          origins:
+            - "http://localhost:3000"
+            - "http://localhost:8000"
+            - "https://localhost:8443"
+          methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          headers:
+            - Content-Type
+            - Authorization
+            - X-Requested-With
+            - X-Kanizsa-Client
+          credentials: true
+      - name: rate-limiting
+        config:
+          minute: 10000  # 10,000 requests per minute for high-volume agents
+          hour: 100000   # 100,000 requests per hour
+          day: 1000000   # 1,000,000 requests per day
+          policy: local
+          fault_tolerant: true
+      - name: request-size-limiting
+        config:
+          allowed_payload_size: 52428800  # 50MB for photo uploads
+          require_content_length: false
+          size_unit: bytes
+      - name: circuit-breaker
+        config:
+          threshold: 5
+          timeout: 30
+          unhealthy:
+            http_statuses: [500, 502, 503, 504]
+            interval: 30
+          healthy:
+            http_statuses: [200, 201, 202]
+            interval: 30
+            successes: 2
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - X-Kanizsa-Version: "10.0.1"
+              - X-Gateway: "Kong"
+              - X-Service: "Kanizsa-MCP-Server"
+              - X-Request-ID: "${request_id}"
+      - name: response-transformer
+        config:
+          add:
+            headers:
+              - X-Response-Time: "${response_time}"
+              - X-Kanizsa-Gateway: "Kong"
+              - X-MCP-Server: "Kanizsa"
+              - X-Request-ID: "${request_id}"
+      - name: prometheus
+        config:
+          status_codes: true
+          latency: true
+          bandwidth: true
+          upstream_health: true
+
+  # Health Check Service
+  - name: kanizsa-health
+    url: http://kanizsa-app:8000
+    routes:
+      - name: health-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /health
+        strip_path: false
+        preserve_host: true
+    plugins:
+      - name: prometheus
+        config:
+          status_codes: true
+          latency: true
+      - name: correlation-id
+        config:
+          header_name: X-Request-ID
+          generator: uuid
+          echo_downstream: true
+
+  # Metrics Service (Prometheus)
+  - name: kanizsa-metrics
+    url: http://prometheus:9090
+    routes:
+      - name: metrics-routes
+        protocols:
+          - http
+          - https
+        paths:
+          - /metrics
+        strip_path: true
+        preserve_host: true
+    plugins:
+      - name: basic-auth
+        config:
+          hide_credentials: true
+      - name: rate-limiting
+        config:
+          minute: 30
+          hour: 300
+          policy: local
+
+# Global plugins
+plugins:
+  - name: prometheus
+    config:
+      status_codes: true
+      latency: true
+      bandwidth: true
+      upstream_health: true
+      http_requests: true
+      http_status_codes: true
+      latency_histogram_buckets:
+        - 0.005
+        - 0.01
+        - 0.025
+        - 0.05
+        - 0.075
+        - 0.1
+        - 0.25
+        - 0.5
+        - 0.75
+        - 1
+        - 2.5
+        - 5
+        - 7.5
+        - 10
+  - name: correlation-id
+    config:
+      header_name: X-Request-ID
+      generator: uuid
+      echo_downstream: true
+  - name: request-size-limiting
+    config:
+      allowed_payload_size: 10485760  # 10MB default
+      require_content_length: false
+      size_unit: bytes 
